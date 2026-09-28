@@ -1,0 +1,100 @@
+import { atom, computed, map, type ReadableAtom } from "nanostores"
+import type { AlertMap, ChartTimes, SystemRecord, UpdateInfo, UserSettings } from "@/types"
+import { pb } from "./api"
+import { Unit } from "./enums"
+
+/** Default layout width. Used as fallback when user setting is unset. */
+export const defaultLayoutWidth = 1580
+
+/** Store if user is authenticated */
+export const $authenticated = atom(pb.authStore.isValid)
+
+/** Map of system records by name */
+export const $allSystemsByName = map<Record<string, SystemRecord>>({})
+/** Map of system records by id */
+export const $allSystemsById = map<Record<string, SystemRecord>>({})
+/** Map of up systems by id */
+export const $upSystems = map<Record<string, SystemRecord>>({})
+/** Map of down systems by id */
+export const $downSystems = map<Record<string, SystemRecord>>({})
+/** Map of paused systems by id */
+export const $pausedSystems = map<Record<string, SystemRecord>>({})
+/** List of all system records */
+export const $systems: ReadableAtom<SystemRecord[]> = computed($allSystemsById, Object.values)
+
+/** Map of alert records by system id and alert name */
+export const $alerts = map<AlertMap>({})
+
+/** SSH public key */
+export const $publicKey = atom("")
+
+/** New version info if an update is available, otherwise undefined */
+export const $newVersion = atom<UpdateInfo | undefined>()
+
+/** Chart time period used when user settings don't provide one */
+export const defaultChartTime: ChartTimes = "1h"
+
+/** Chart time period */
+export const $chartTime = atom<ChartTimes>(defaultChartTime)
+
+/** Whether to display average or max chart values */
+export const $maxValues = atom(false)
+
+// export const UserSettingsSchema = v.object({
+// 	chartTime: v.picklist(["1h", "12h", "24h", "1w", "30d"]),
+// 	emails: v.optional(v.array(v.pipe(v.string(), v.email())), [pb?.authStore?.record?.email ?? ""]),
+// 	webhooks: v.optional(v.array(v.string())),
+// 	colorWarn: v.optional(v.pipe(v.number(), v.minValue(1), v.maxValue(100))),
+// 	colorDanger: v.optional(v.pipe(v.number(), v.minValue(1), v.maxValue(100))),
+// 	unitTemp: v.optional(v.enum(Unit)),
+// 	unitNet: v.optional(v.enum(Unit)),
+// 	unitDisk: v.optional(v.enum(Unit)),
+// })
+
+/** User settings */
+export const $userSettings = map<UserSettings>({
+	chartTime: defaultChartTime,
+	emails: [pb.authStore.record?.email || ""],
+	unitNet: Unit.Bytes,
+	unitTemp: Unit.Celsius,
+})
+
+/** Chart time period stored in user settings, or the default if it's missing */
+export function getUserChartTime(settings: UserSettings = $userSettings.get()): ChartTimes {
+	return settings.chartTime || defaultChartTime
+}
+
+/**
+ * Apply settings loaded from the database, including the default chart time.
+ * Other settings writes don't touch $chartTime so they can't reset the active chart range.
+ */
+export function hydrateUserSettings(settings: UserSettings) {
+	$userSettings.set(settings)
+	$chartTime.set(getUserChartTime(settings))
+}
+
+/** Container chart filter */
+export const $containerFilter = atom("")
+
+/** Temperature chart filter */
+export const $temperatureFilter = atom("")
+
+/** Filter for network monitor charts (compare page and per-system monitor charts) */
+export const $monitorFilter = atom("")
+
+/** Fan-speed chart filter */
+export const $fanFilter = atom("")
+
+/** Fallback copy to clipboard dialog content */
+export const $copyContent = atom("")
+
+/** Direction for localization */
+export const $direction = atom<"ltr" | "rtl">("ltr")
+
+/** Longest system name string. Used to reserve width in virtualized tables. */
+export const $longestSystemName = atom("")
+
+/** Incremented when measured text widths are invalidated (e.g. web font finished loading).
+ *  Anything that caches a comparison from isVisuallyLonger should recompute when this changes.
+ */
+export const $textMeasureVersion = atom(0)
